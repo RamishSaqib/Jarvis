@@ -23,57 +23,76 @@
 - ✅ **100GB/month**
 - ✅ **No cold starts**
 
-## Quick Start: One-Click Deployment
+## Step 1: Deploy AI Service to Render (5 minutes)
 
-### Step 1: Deploy to Render (5 minutes)
+1. **Go to [render.com](https://render.com)** and sign up (free, no credit card)
 
-1. **Fork or push your code to GitHub** (if not already done)
+2. **Click "New" → "Web Service"**
 
-2. **Go to [render.com](https://render.com)** and sign up (free, no credit card)
+3. **Connect your GitHub repository** (`RamishSaqib/Jarvis`)
 
-3. **Click "New" → "Blueprint"**
+4. **Configure the service:**
+   - **Name**: `jarvis-ai-service`
+   - **Root Directory**: `frontier-audio-jarvis/ai-service`
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `frontier-audio-jarvis/ai-service/Dockerfile`
+   - **Plan**: `Free`
 
-4. **Connect your GitHub repository**
-
-5. **Render will detect `render.yaml`** and show you:
-   - `jarvis-ai-service` (AI Service)
-   - `jarvis-backend` (Backend)
-
-6. **Set environment variables** (click "Edit" on each service):
-   
-   **For AI Service:**
+5. **Add environment variables:**
    - `OPENAI_API_KEY` = your OpenAI API key
    - `GITHUB_TOKEN` = your GitHub token (optional)
-   
-   **Backend will auto-configure** with AI service URL
+   - `GPT_MODEL` = `gpt-4` (optional)
 
-7. **Click "Apply"** - Render will deploy both services
+6. **Click "Create Web Service"**
 
-8. **Wait 5-10 minutes** for deployment to complete
+7. **Wait 5-10 minutes** for deployment
 
-9. **Copy your backend URL** (e.g., `https://jarvis-backend.onrender.com`)
+8. **Copy the service URL** (e.g., `https://jarvis-ai-service.onrender.com`)
 
-### Step 2: Deploy to Vercel (3 minutes)
+## Step 2: Deploy Backend to Render (5 minutes)
+
+1. **Click "New" → "Web Service"** again
+
+2. **Select the same repository** (`RamishSaqib/Jarvis`)
+
+3. **Configure the service:**
+   - **Name**: `jarvis-backend`
+   - **Root Directory**: `frontier-audio-jarvis/backend`
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `frontier-audio-jarvis/backend/Dockerfile`
+   - **Plan**: `Free`
+
+4. **Add environment variables:**
+   - `AI_SERVICE_URL` = `wss://jarvis-ai-service.onrender.com/ws/ai` (use your AI service URL from Step 1, change `https` to `wss`)
+   - `PORT` = `3001`
+
+5. **Click "Create Web Service"**
+
+6. **Wait 5-10 minutes** for deployment
+
+7. **Copy the service URL** (e.g., `https://jarvis-backend.onrender.com`)
+
+## Step 3: Deploy Frontend to Vercel (3 minutes)
 
 1. **Go to [vercel.com](https://vercel.com)** and sign up (free)
 
 2. **Click "Add New" → "Project"**
 
-3. **Import your GitHub repository**
+3. **Import your GitHub repository** (`RamishSaqib/Jarvis`)
 
 4. **Configure:**
-   - Framework Preset: **Next.js**
-   - Root Directory: **`frontend/frontend`**
+   - **Framework Preset**: Next.js
+   - **Root Directory**: `frontier-audio-jarvis/frontend/frontend`
 
 5. **Add environment variable:**
    - Name: `NEXT_PUBLIC_BACKEND_URL`
-   - Value: `wss://jarvis-backend.onrender.com` (your backend URL from Step 1, change `https` to `wss`)
+   - Value: `wss://jarvis-backend.onrender.com` (your backend URL from Step 2, change `https` to `wss`)
 
 6. **Click "Deploy"**
 
 7. **Your site is live!** 🎉
 
-## Step 3: (Optional) Keep Services Awake
+## Step 4: (Optional) Keep Services Awake
 
 Free tier services sleep after 15 minutes. Here are options to keep them awake:
 
@@ -113,7 +132,7 @@ Free tier services sleep after 15 minutes. Here are options to keep them awake:
    ```
    Add:
    ```
-   */14 * * * * /path/to/keep-alive.sh
+   */14 * * * * /path/to/frontier-audio-jarvis/keep-alive.sh
    ```
 
 ## Testing Your Deployment
@@ -143,6 +162,7 @@ Free tier services sleep after 15 minutes. Here are options to keep them awake:
 - **Check**: Backend URL uses `wss://` (not `ws://`)
 - **Check**: Environment variable is set in Vercel
 - **Check**: Backend service is running in Render dashboard
+- **Check**: Root Directory is set correctly in Render
 
 ### Audio Recording Doesn't Work
 - **Cause**: HTTPS required for microphone access
@@ -153,6 +173,12 @@ Free tier services sleep after 15 minutes. Here are options to keep them awake:
 - **Check**: OpenAI API key is valid and has credits
 - **Check**: Environment variables are set in Render
 - **Check**: Render logs for detailed error messages
+- **Check**: Root Directory is `frontier-audio-jarvis/ai-service`
+
+### Deployment Fails
+- **Check**: Root Directory is set correctly
+- **Check**: Dockerfile Path includes `frontier-audio-jarvis/` prefix
+- **Check**: All environment variables are set
 
 ## Monitoring Your Services
 
@@ -198,6 +224,7 @@ If you encounter issues:
 2. Check Vercel logs (Vercel Dashboard → Deployment → Logs)
 3. Verify environment variables are set correctly
 4. Ensure OpenAI API key has credits
+5. Verify Root Directory is set to `frontier-audio-jarvis/[service-name]`
 
 ---
 
