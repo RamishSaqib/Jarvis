@@ -35,7 +35,7 @@
    - **Name**: `jarvis-ai-service`
    - **Root Directory**: `frontier-audio-jarvis/ai-service`
    - **Environment**: `Docker`
-   - **Dockerfile Path**: `frontier-audio-jarvis/ai-service/Dockerfile`
+   - **Dockerfile Path**: `Dockerfile` (just the filename - Render will look in the Root Directory)
    - **Plan**: `Free`
 
 5. **Add environment variables:**
@@ -59,7 +59,7 @@
    - **Name**: `jarvis-backend`
    - **Root Directory**: `frontier-audio-jarvis/backend`
    - **Environment**: `Docker`
-   - **Dockerfile Path**: `frontier-audio-jarvis/backend/Dockerfile`
+   - **Dockerfile Path**: `Dockerfile` (just the filename - Render will look in the Root Directory)
    - **Plan**: `Free`
 
 4. **Add environment variables:**
