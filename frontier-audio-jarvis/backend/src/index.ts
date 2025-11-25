@@ -48,14 +48,15 @@ wss.on('connection', (ws, req) => {
         aiServiceUrl.searchParams.append('session_id', sessionId);
     }
 
-    const aiSocket = new WebSocket(aiServiceUrl.toString());
+    console.log(`Connecting to AI service at: ${aiServiceUrl.toString()}`);
+    const aiService = new WebSocket(aiServiceUrl.toString());
 
-    aiSocket.on('open', () => {
+    aiService.on('open', () => {
         console.log('Connected to AI Service');
         ws.send(JSON.stringify({ type: 'system', message: 'AI Service Connected' }));
     });
 
-    aiSocket.on('message', (data) => {
+    aiService.on('message', (data) => {
         // Forward AI response to Frontend
         // Data from AI service is likely JSON text string
         if (ws.readyState === WebSocket.OPEN) {
@@ -63,7 +64,7 @@ wss.on('connection', (ws, req) => {
         }
     });
 
-    aiSocket.on('error', (error) => {
+    aiService.on('error', (error) => {
         console.error('AI Service error:', error);
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'error', message: 'AI Service Unavailable' }));
