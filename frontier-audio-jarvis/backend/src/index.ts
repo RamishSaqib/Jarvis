@@ -71,23 +71,22 @@ wss.on('connection', (ws, req) => {
         }
     });
 
-    aiSocket.on('close', () => {
+    aiService.on('close', () => {
         console.log('Disconnected from AI Service');
     });
 
     ws.on('message', (message) => {
         // Forward Audio/Data to AI Service
-        if (aiSocket.readyState === WebSocket.OPEN) {
-            aiSocket.send(message);
-        }
+        aiSocket.send(message);
+    }
     });
 
-    ws.on('close', () => {
-        console.log(`Client disconnected. Active connections: ${wss.clients.size}`);
-        if (aiSocket.readyState === WebSocket.OPEN) {
-            aiSocket.close();
-        }
-    });
+ws.on('close', () => {
+    console.log(`Client disconnected. Active connections: ${wss.clients.size}`);
+    if (aiSocket.readyState === WebSocket.OPEN) {
+        aiSocket.close();
+    }
+});
 });
 
 app.get('/health', (req, res) => {
