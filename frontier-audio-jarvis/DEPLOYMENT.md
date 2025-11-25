@@ -63,7 +63,7 @@
    - **Plan**: `Free`
 
 4. **Add environment variables:**
-   - `AI_SERVICE_URL` = `wss://jarvis-ai-service.onrender.com/ws/ai` (use your AI service URL from Step 1, change `https` to `wss`)
+   - `AI_SERVICE_URL` = `wss://jarvis-ai-service.onrender.com/ws/ai` (IMPORTANT: Must use `wss://` not `ws://` to avoid 301 redirects)
    - `PORT` = `3001`
 
 5. **Click "Create Web Service"**
