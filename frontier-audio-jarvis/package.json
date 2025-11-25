@@ -1,0 +1,15 @@
+{
+  "name": "frontier-audio-jarvis",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "echo 'Run scripts in individual workspaces'"
+  },
+  "dependencies": {
+    "lucide-react": "^0.554.0"
+  }
+}

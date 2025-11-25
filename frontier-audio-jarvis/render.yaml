@@ -1,0 +1,32 @@
+services:
+  # AI Service
+  - type: web
+    name: jarvis-ai-service
+    env: docker
+    dockerfilePath: ./ai-service/Dockerfile
+    dockerContext: ./ai-service
+    plan: free
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GPT_MODEL
+        value: gpt-4
+    healthCheckPath: /
+
+  # Backend Service
+  - type: web
+    name: jarvis-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: jarvis-ai-service
+          envVarKey: RENDER_EXTERNAL_URL
+          property: url
+    healthCheckPath: /health
