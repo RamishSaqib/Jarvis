@@ -77,16 +77,17 @@ wss.on('connection', (ws, req) => {
 
     ws.on('message', (message) => {
         // Forward Audio/Data to AI Service
-        aiSocket.send(message);
-    }
+        if (aiService.readyState === WebSocket.OPEN) {
+            aiService.send(message);
+        }
     });
 
-ws.on('close', () => {
-    console.log(`Client disconnected. Active connections: ${wss.clients.size}`);
-    if (aiSocket.readyState === WebSocket.OPEN) {
-        aiSocket.close();
-    }
-});
+    ws.on('close', () => {
+        console.log(`Client disconnected. Active connections: ${wss.clients.size}`);
+        if (aiService.readyState === WebSocket.OPEN) {
+            aiService.close();
+        }
+    });
 });
 
 app.get('/health', (req, res) => {
