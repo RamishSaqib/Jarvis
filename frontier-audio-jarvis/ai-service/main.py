@@ -319,12 +319,18 @@ Your limitations:
                 # Buffer audio chunks
                 data = message["bytes"]
                 
-                # If this is the first chunk of a new recording, clear any leftover buffer
+                # If this is the first chunk of a new recording, validate it's a WebM header
                 if not is_recording:
-                    if len(audio_buffer) > 0:
-                        print(f"Warning: Clearing leftover buffer data ({len(audio_buffer)} bytes) from previous request")
-                        audio_buffer.clear()
-                    is_recording = True
+                    # Check for WebM EBML ID: 1A 45 DF A3
+                    if len(data) >= 4 and data[:4] == b'\x1a\x45\xdf\xa3':
+                        if len(audio_buffer) > 0:
+                            print(f"Warning: Clearing leftover buffer data ({len(audio_buffer)} bytes) from previous request")
+                            audio_buffer.clear()
+                        is_recording = True
+                        print("New WebM stream detected")
+                    else:
+                        print(f"Warning: Ignoring trailing chunk ({len(data)} bytes) - not a WebM header")
+                        continue
                 
                 audio_buffer.extend(data)
                 print(f"Buffered audio chunk: {len(data)} bytes (total: {len(audio_buffer)} bytes)")
