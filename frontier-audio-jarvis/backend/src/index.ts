@@ -75,12 +75,22 @@ wss.on('connection', (ws, req) => {
         console.log('Disconnected from AI Service');
     });
 
-    ws.on('message', (message) => {
+    ws.on('message', (message, isBinary) => {
         // Forward Audio/Data to AI Service
         if (aiService.readyState === WebSocket.OPEN) {
-            aiService.send(message);
+            if (isBinary) {
+                // Binary data (audio chunks) - forward as-is
+                console.log(`Forwarding binary data: ${message.length} bytes`);
+                aiService.send(message);
+            } else {
+                // Text data (JSON commands like stop_recording) - forward as text
+                const textMessage = message.toString();
+                console.log(`Forwarding text message: ${textMessage}`);
+                aiService.send(textMessage);
+            }
         }
     });
+
 
     ws.on('close', () => {
         console.log(`Client disconnected. Active connections: ${wss.clients.size}`);
