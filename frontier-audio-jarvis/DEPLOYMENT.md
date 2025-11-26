@@ -72,7 +72,13 @@
 
 7. **Copy the service URL** (e.g., `https://jarvis-backend.onrender.com`)
 
-## Step 3: Deploy Frontend to Vercel (3 minutes)
+### 3. Search Configuration (Optional but Recommended)
+For reliable general web search (beyond weather), use the Tavily API.
+1.  Get a free API key from [tavily.com](https://tavily.com/).
+2.  Add `TAVILY_API_KEY` to your environment variables in Render (AI Service).
+    *   If not provided, Jarvis will fall back to a custom scraper.
+
+## Step 4: Deploy Frontend to Vercel (3 minutes)
 
 1. **Go to [vercel.com](https://vercel.com)** and sign up (free)
 
