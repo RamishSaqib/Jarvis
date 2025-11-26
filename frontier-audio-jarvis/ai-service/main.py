@@ -261,10 +261,20 @@ Your limitations:
                                 if "SEARCH_WEB:" in ai_response:
                                     try:
                                         import re
-                                        search_match = re.search(r'SEARCH_WEB:\s*({.*?})', ai_response, re.DOTALL)
-                                        if search_match:
-                                            search_data = json.loads(search_match.group(1))
+                                        # Try to match JSON first
+                                        json_match = re.search(r'SEARCH_WEB:\s*({.*?})', ai_response, re.DOTALL)
+                                        if json_match:
+                                            search_data = json.loads(json_match.group(1))
                                             query = search_data.get("query")
+                                        else:
+                                            # Fallback to plain text capture
+                                            text_match = re.search(r'SEARCH_WEB:\s*(.+)', ai_response, re.DOTALL)
+                                            if text_match:
+                                                query = text_match.group(1).strip()
+                                            else:
+                                                query = None
+                                        
+                                        if query:
                                             
                                             # Send status update
                                             await websocket.send_text(json.dumps({
