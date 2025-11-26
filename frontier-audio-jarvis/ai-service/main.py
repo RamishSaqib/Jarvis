@@ -146,31 +146,10 @@ Your limitations:
                             continue
                         
                         try:
-                            # Convert audio buffer to WAV format for Whisper
-                            # Try WebM first, fallback to other formats if it fails
-                            audio_segment = None
-                            try:
-                                audio_segment = AudioSegment.from_file(
-                                    io.BytesIO(audio_buffer), 
-                                    format="webm"
-                                )
-                            except Exception as webm_error:
-                                print(f"WebM decoding failed: {webm_error}")
-                                # Try without specifying format (let pydub auto-detect)
-                                try:
-                                    audio_segment = AudioSegment.from_file(io.BytesIO(audio_buffer))
-                                except Exception as auto_error:
-                                    print(f"Auto-detect failed: {auto_error}")
-                                    raise Exception("Failed to decode audio format")
-                            
-                            # Export to WAV in memory
-                            wav_buffer = io.BytesIO()
-                            audio_segment.export(wav_buffer, format="wav")
-                            wav_buffer.seek(0)
-                            
-                            # Save to temporary file (Whisper API requires file)
-                            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
-                                temp_audio.write(wav_buffer.read())
+                            # Whisper API supports WebM format natively - no conversion needed!
+                            # Save audio buffer directly to temporary WebM file
+                            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_audio:
+                                temp_audio.write(audio_buffer)
                                 temp_audio_path = temp_audio.name
                             
                             # Check for interrupt before API call
