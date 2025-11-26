@@ -63,9 +63,18 @@ class SearchService:
         Extracts location and queries Open-Meteo API.
         """
         try:
-            # Simple location extraction (naive but effective for "weather in City")
-            # Remove "weather", "in", "forecast", etc.
-            clean_query = query.lower().replace("weather", "").replace("current", "").replace("forecast", "").replace(" in ", " ").strip()
+            # Robust location extraction using regex
+            import re
+            # Match "weather in [Location]" or "forecast for [Location]"
+            match = re.search(r'(?:weather|forecast)\s+(?:in|for)\s+(.+)', query, re.IGNORECASE)
+            
+            if match:
+                clean_query = match.group(1).strip(" ?.,!")
+            else:
+                # Fallback: simple cleanup if regex doesn't match
+                clean_query = query.lower().replace("weather", "").replace("current", "").replace("forecast", "").replace(" in ", " ").strip(" ?.,!")
+            
+            print(f"Extracted location for weather: '{clean_query}'")
             
             # Geocoding
             geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_query}&count=1&language=en&format=json"
