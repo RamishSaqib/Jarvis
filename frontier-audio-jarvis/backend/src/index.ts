@@ -80,7 +80,7 @@ wss.on('connection', (ws, req) => {
         if (aiService.readyState === WebSocket.OPEN) {
             if (isBinary) {
                 // Binary data (audio chunks) - forward as-is
-                const size = Buffer.isBuffer(message) ? message.length : message.byteLength;
+                const size = Buffer.isBuffer(message) ? message.length : (message as ArrayBuffer).byteLength;
                 console.log(`Forwarding binary data: ${size} bytes`);
                 aiService.send(message);
             } else {
