@@ -233,6 +233,7 @@ Your limitations:
                             max_iterations = 3
                             iteration = 0
                             final_response_text = ""
+                            pr_url = None
                             
                             while iteration < max_iterations:
                                 iteration += 1
@@ -295,7 +296,6 @@ Your limitations:
                                         continue
 
                                 # Check for PR creation command (existing logic)
-                                pr_url = None
                                 if "CREATE_PR:" in ai_response:
                                     # ... (existing PR logic) ...
                                     try:
