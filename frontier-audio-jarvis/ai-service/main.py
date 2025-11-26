@@ -362,6 +362,8 @@ Your limitations:
                             print(f"Error processing audio: {e}")
                             # CRITICAL: Clear buffer even on error to prevent corruption on next request
                             audio_buffer.clear()
+                            is_recording = False
+                            await websocket.send_text(json.dumps({
                                 "type": "error",
                                 "message": f"Error processing audio: {str(e)}"
                             }))
