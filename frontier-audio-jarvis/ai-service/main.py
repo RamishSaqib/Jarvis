@@ -47,6 +47,15 @@ interrupt_flags = {}
 async def root():
     return {"message": "AI Service is running with Whisper & GPT-4"}
 
+@app.get("/health")
+async def health():
+    """Lightweight health check endpoint for monitoring services"""
+    return {
+        "status": "healthy",
+        "service": "jarvis-ai-service",
+        "version": "1.0.0"
+    }
+
 @app.websocket("/ws/ai")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()

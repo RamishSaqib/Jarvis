@@ -13,7 +13,7 @@ services:
         sync: false
       - key: GPT_MODEL
         value: gpt-4
-    healthCheckPath: /
+    healthCheckPath: /health
 
   # Backend Service
   - type: web

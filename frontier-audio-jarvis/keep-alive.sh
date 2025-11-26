@@ -4,8 +4,8 @@
 # This script pings your services to prevent them from sleeping
 
 # Replace these with your actual Render service URLs
-AI_SERVICE_URL="https://your-ai-service.onrender.com"
-BACKEND_URL="https://your-backend.onrender.com/health"
+AI_SERVICE_URL="https://jarvis-6bqc.onrender.com/health"
+BACKEND_URL="https://jarvis-backend-gshv.onrender.com/health"
 
 echo "Pinging AI Service..."
 curl -s "$AI_SERVICE_URL" > /dev/null

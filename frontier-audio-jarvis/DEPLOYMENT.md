@@ -63,7 +63,7 @@
    - **Plan**: `Free`
 
 4. **Add environment variables:**
-   - `AI_SERVICE_URL` = `wss://jarvis-ai-service.onrender.com/ws/ai` (IMPORTANT: Must use `wss://` not `ws://` to avoid 301 redirects)
+   - `AI_SERVICE_URL` = `wss://jarvis-6bqc.onrender.com/ws/ai` (IMPORTANT: Must use `wss://` not `ws://` to avoid 301 redirects)
    - `PORT` = `3001`
 
 5. **Click "Create Web Service"**
@@ -101,8 +101,8 @@ Free tier services sleep after 15 minutes. Here are options to keep them awake:
 1. **Sign up at [uptimerobot.com](https://uptimerobot.com)** (free)
 
 2. **Add two monitors:**
-   - Monitor 1: `https://jarvis-ai-service.onrender.com`
-   - Monitor 2: `https://jarvis-backend.onrender.com/health`
+   - Monitor 1: `https://jarvis-6bqc.onrender.com/health`
+   - Monitor 2: `https://jarvis-backend-gshv.onrender.com/health`
 
 3. **Set interval to 14 minutes**
 
@@ -113,8 +113,8 @@ Free tier services sleep after 15 minutes. Here are options to keep them awake:
 1. **Sign up at [cron-job.org](https://cron-job.org)** (free)
 
 2. **Create two cron jobs:**
-   - URL 1: `https://jarvis-ai-service.onrender.com`
-   - URL 2: `https://jarvis-backend.onrender.com/health`
+   - URL 1: `https://jarvis-6bqc.onrender.com/health`
+   - URL 2: `https://jarvis-backend-gshv.onrender.com/health`
    - Interval: Every 14 minutes
 
 ### Option C: Local Script (Free, but requires your computer)
