@@ -33,6 +33,8 @@ class SearchService:
                 if weather_result:
                     return weather_result
 
+            errors = []
+
             # 2. Tavily API (Best for general search)
             if self.tavily_client:
                 try:
@@ -41,6 +43,9 @@ class SearchService:
                     return self._format_tavily_results(response.get("results", []))
                 except Exception as e:
                     print(f"Tavily search failed: {e}")
+                    errors.append(f"Tavily Error: {str(e)}")
+            else:
+                errors.append("Tavily: Key not configured")
 
             # 3. DuckDuckGo Library (Lite backend)
             try:
@@ -49,14 +54,25 @@ class SearchService:
                     return self._format_results(results)
             except Exception as e:
                 print(f"Library search failed: {e}")
+                errors.append(f"DDG Lib Error: {str(e)}")
             
             # 4. Custom HTML Scraper (Fallback)
             print("Falling back to custom HTML scraping...")
-            return self._custom_search(query, max_results)
+            scraper_result = self._custom_search(query, max_results)
+            
+            # Check if scraper returned a valid string result (success) or error message
+            if "Search Results:" in scraper_result:
+                return scraper_result
+            else:
+                errors.append(f"Scraper Error: {scraper_result}")
+            
+            # If we get here, all methods failed
+            error_summary = "; ".join(errors)
+            return f"Unable to perform search. Details: {error_summary}"
             
         except Exception as e:
             print(f"Search error: {e}")
-            return f"Error performing search: {str(e)}"
+            return f"Critical Search Error: {str(e)}"
 
     def _get_weather(self, query):
         """
