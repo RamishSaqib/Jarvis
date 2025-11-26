@@ -148,9 +148,11 @@ Your limitations:
                         try:
                             # Whisper API supports WebM format natively - no conversion needed!
                             # Save audio buffer directly to temporary WebM file
-                            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_audio:
+                            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False, mode='wb') as temp_audio:
                                 temp_audio.write(audio_buffer)
+                                temp_audio.flush()  # Ensure all data is written
                                 temp_audio_path = temp_audio.name
+                            # File is now closed and fully written
                             
                             # Check for interrupt before API call
                             if interrupt_flags[connection_id]:
