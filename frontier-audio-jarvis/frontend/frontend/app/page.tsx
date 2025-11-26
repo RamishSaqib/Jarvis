@@ -202,6 +202,23 @@ export default function Home() {
     setIsProcessing(false);
   };
 
+  // Spacebar to toggle recording
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Only trigger if spacebar is pressed and not typing in an input field
+      if (event.code === 'Space' &&
+        event.target instanceof HTMLElement &&
+        event.target.tagName !== 'INPUT' &&
+        event.target.tagName !== 'TEXTAREA') {
+        event.preventDefault();
+        handleMicClick();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [recordingState, connectionState, isProcessing]); // Dependencies for handleMicClick
+
   const getConnectionStatusColor = () => {
     switch (connectionState) {
       case 'connected':
