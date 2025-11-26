@@ -100,6 +100,7 @@ Your limitations:
     
     # Buffer for audio chunks
     audio_buffer = bytearray()
+    is_recording = False  # Track if we're actively recording
     
     try:
         # Send connection confirmation
@@ -146,10 +147,21 @@ Your limitations:
                         
                         try:
                             # Convert audio buffer to WAV format for Whisper
-                            audio_segment = AudioSegment.from_file(
-                                io.BytesIO(audio_buffer), 
-                                format="webm"
-                            )
+                            # Try WebM first, fallback to other formats if it fails
+                            audio_segment = None
+                            try:
+                                audio_segment = AudioSegment.from_file(
+                                    io.BytesIO(audio_buffer), 
+                                    format="webm"
+                                )
+                            except Exception as webm_error:
+                                print(f"WebM decoding failed: {webm_error}")
+                                # Try without specifying format (let pydub auto-detect)
+                                try:
+                                    audio_segment = AudioSegment.from_file(io.BytesIO(audio_buffer))
+                                except Exception as auto_error:
+                                    print(f"Auto-detect failed: {auto_error}")
+                                    raise Exception("Failed to decode audio format")
                             
                             # Export to WAV in memory
                             wav_buffer = io.BytesIO()
@@ -295,13 +307,17 @@ Your limitations:
                             
                         except Exception as e:
                             print(f"Error processing audio: {e}")
+                            # CRITICAL: Clear buffer even on error to prevent corruption on next request
+                            audio_buffer.clear()
+                            is_recording = False  # Reset for next recording
                             await websocket.send_text(json.dumps({
                                 "type": "error",
                                 "message": f"Error processing audio: {str(e)}"
                             }))
                         
-                        # Clear buffer
+                        # Clear buffer after successful processing
                         audio_buffer.clear()
+                        is_recording = False  # Reset for next recording
                     else:
                         await websocket.send_text(json.dumps({
                             "type": "error",
@@ -311,6 +327,14 @@ Your limitations:
             elif "bytes" in message:
                 # Buffer audio chunks
                 data = message["bytes"]
+                
+                # If this is the first chunk of a new recording, clear any leftover buffer
+                if not is_recording:
+                    if len(audio_buffer) > 0:
+                        print(f"Warning: Clearing leftover buffer data ({len(audio_buffer)} bytes) from previous request")
+                        audio_buffer.clear()
+                    is_recording = True
+                
                 audio_buffer.extend(data)
                 print(f"Buffered audio chunk: {len(data)} bytes (total: {len(audio_buffer)} bytes)")
 
