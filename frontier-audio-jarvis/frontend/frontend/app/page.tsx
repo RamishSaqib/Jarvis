@@ -19,6 +19,7 @@ export default function Home() {
   const { recordingState, startRecording, stopRecording, error: audioError } = useAudioRecorder(
     (audioBlob) => {
       // Send audio data to backend via WebSocket
+      console.log('Sending audio chunk:', audioBlob.size, 'bytes');
       sendMessage(audioBlob);
     }
   );
@@ -185,11 +186,13 @@ export default function Home() {
       setIsRecording(false);
 
       // Send stop recording signal to trigger transcription
+      console.log('Sending stop_recording signal');
       sendMessage(JSON.stringify({ type: 'stop_recording' }));
     } else {
       playSound('start');
       await startRecording();
       setIsRecording(true);
+      console.log('Started recording');
     }
   };
 

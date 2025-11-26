@@ -94,12 +94,16 @@ export function useWebSocket(url?: string) {
 
     const sendMessage = useCallback((data: string | ArrayBuffer | Blob) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
+            const dataType = data instanceof Blob ? 'Blob' : typeof data;
+            const dataSize = data instanceof Blob ? data.size : (data instanceof ArrayBuffer ? data.byteLength : data.length);
+            console.log(`Sending ${dataType} (${dataSize} bytes) via WebSocket`);
             wsRef.current.send(data);
             return true;
         }
         console.warn('WebSocket is not connected');
         return false;
     }, []);
+
 
     useEffect(() => {
         connect();
