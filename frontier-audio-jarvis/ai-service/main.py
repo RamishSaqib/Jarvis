@@ -234,6 +234,16 @@ Your limitations:
                             # Generate AI response with GPT-4
                             print("Generating GPT-4 response...")
                             
+                            # Ensure conversation history exists (safety check for reconnections)
+                            if connection_id not in conversations:
+                                print(f"Warning: Conversation history missing for {connection_id}, reinitializing")
+                                conversations[connection_id] = [
+                                    {
+                                        "role": "system",
+                                        "content": "You are Jarvis, a helpful and intelligent voice assistant."
+                                    }
+                                ]
+                            
                             # Prepare messages with GitHub context if available
                             messages_for_gpt = conversations[connection_id].copy()
                             if github_context:
