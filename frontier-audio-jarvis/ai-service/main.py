@@ -8,6 +8,8 @@ from openai import OpenAI
 from pydub import AudioSegment
 import tempfile
 from github_service import GitHubService
+from search_service import SearchService
+from voice_service import VoiceService
 
 load_dotenv()
 
@@ -82,6 +84,8 @@ async def websocket_endpoint(websocket: WebSocket):
 7. If a question is outside your knowledge, suggest where the user might find the answer.
 
 You have access to the following tools and capabilities:
+- **Web Search**: You can search the web for real-time information. Use this when asked about current events, facts, or things you don't know.
+  SEARCH_WEB: {"query": "search query here"}
 - **GitHub Integration**: You can search public GitHub repositories for code and documentation.
 - **Real-time Interaction**: You can be interrupted by the user at any time.
 - **PR Creation**: If the user asks you to create a pull request, you can do so by responding with a special command format:
@@ -225,67 +229,121 @@ Your limitations:
                                     }
                                 ]
                             
-                            # Prepare messages with GitHub context if available
-                            messages_for_gpt = conversations[connection_id].copy()
-                            if github_context:
-                                messages_for_gpt.append({
-                                    "role": "system",
-                                    "content": f"Additional context from GitHub:\n{github_context}\n\nUse this information to provide accurate code examples and include the GitHub links in your response."
-                                })
+                            # --- Main Processing Loop (Thought Loop) ---
+                            max_iterations = 3
+                            iteration = 0
+                            final_response_text = ""
                             
-                            response = client.chat.completions.create(
-                                model=os.getenv("GPT_MODEL", "gpt-4"),
-                                messages=messages_for_gpt,
-                                max_tokens=300,
-                                temperature=0.7
-                            )
+                            while iteration < max_iterations:
+                                iteration += 1
+                                print(f"Iteration {iteration}/{max_iterations}")
+                                
+                                # Prepare messages with GitHub context if available
+                                messages_for_gpt = conversations[connection_id].copy()
+                                if github_context:
+                                    messages_for_gpt.append({
+                                        "role": "system",
+                                        "content": f"Additional context from GitHub:\n{github_context}\n\nUse this information to provide accurate code examples and include the GitHub links in your response."
+                                    })
+                                
+                                response = client.chat.completions.create(
+                                    model=os.getenv("GPT_MODEL", "gpt-4"),
+                                    messages=messages_for_gpt,
+                                    max_tokens=500, # Increased for search results
+                                    temperature=0.7
+                                )
+                                
+                                ai_response = response.choices[0].message.content
+                                print(f"AI Response (Iter {iteration}): {ai_response}")
+                                
+                                # Check for SEARCH_WEB command
+                                if "SEARCH_WEB:" in ai_response:
+                                    try:
+                                        import re
+                                        search_match = re.search(r'SEARCH_WEB:\s*({.*?})', ai_response, re.DOTALL)
+                                        if search_match:
+                                            search_data = json.loads(search_match.group(1))
+                                            query = search_data.get("query")
+                                            
+                                            # Send status update
+                                            await websocket.send_text(json.dumps({
+                                                "type": "status",
+                                                "message": f"Searching web for: {query}..."
+                                            }))
+                                            
+                                            # Execute search
+                                            search_results = search_service.search(query)
+                                            
+                                            # Add search results to conversation history
+                                            conversations[connection_id].append({
+                                                "role": "assistant",
+                                                "content": ai_response # Keep the thought process
+                                            })
+                                            conversations[connection_id].append({
+                                                "role": "system",
+                                                "content": f"Search Results for '{query}':\n{search_results}"
+                                            })
+                                            
+                                            # Continue to next iteration to let AI use the results
+                                            continue
+                                    except Exception as e:
+                                        print(f"Error executing search: {e}")
+                                        conversations[connection_id].append({
+                                            "role": "system",
+                                            "content": f"Error executing search: {str(e)}"
+                                        })
+                                        continue
+
+                                # Check for PR creation command (existing logic)
+                                pr_url = None
+                                if "CREATE_PR:" in ai_response:
+                                    # ... (existing PR logic) ...
+                                    try:
+                                        import re
+                                        pr_match = re.search(r'CREATE_PR:\s*({.*?})', ai_response, re.DOTALL)
+                                        if pr_match:
+                                            pr_data = json.loads(pr_match.group(1))
+                                            repo = pr_data.get("repo")
+                                            title = pr_data.get("title")
+                                            body = pr_data.get("body")
+                                            branch = pr_data.get("branch")
+                                            file_path = pr_data.get("file_path")
+                                            file_content = pr_data.get("file_content")
+                                            commit_message = pr_data.get("commit_message")
+                                            
+                                            if github_service.create_branch(repo, branch):
+                                                if github_service.create_file(repo, file_path, file_content, commit_message, branch):
+                                                    pr_url = github_service.create_pull_request(repo, title, body, branch)
+                                                    if pr_url:
+                                                        ai_response = ai_response.replace(pr_match.group(0), f"\n\nI've created a pull request: {pr_url}")
+                                    except Exception as e:
+                                        print(f"Error creating PR: {e}")
+                                
+                                # If no tool commands, this is the final response
+                                final_response_text = ai_response
+                                break
                             
-                            # Check for interrupt after GPT call
-                            if interrupt_flags[connection_id]:
-                                print("Interrupted after GPT-4 call")
-                                audio_buffer.clear()
-                                continue
-                            
-                            ai_response = response.choices[0].message.content
-                            print(f"AI Response: {ai_response}")
-                            
-                            # Check for PR creation command
-                            pr_url = None
-                            if "CREATE_PR:" in ai_response:
-                                try:
-                                    import re
-                                    pr_match = re.search(r'CREATE_PR:\s*({.*?})', ai_response, re.DOTALL)
-                                    if pr_match:
-                                        pr_data = json.loads(pr_match.group(1))
-                                        repo = pr_data.get("repo")
-                                        title = pr_data.get("title")
-                                        body = pr_data.get("body")
-                                        branch = pr_data.get("branch")
-                                        file_path = pr_data.get("file_path")
-                                        file_content = pr_data.get("file_content")
-                                        commit_message = pr_data.get("commit_message")
-                                        
-                                        # Create branch
-                                        if github_service.create_branch(repo, branch):
-                                            # Create/update file
-                                            if github_service.create_file(repo, file_path, file_content, commit_message, branch):
-                                                # Create PR
-                                                pr_url = github_service.create_pull_request(repo, title, body, branch)
-                                                if pr_url:
-                                                    ai_response = ai_response.replace(pr_match.group(0), f"\n\nI've created a pull request: {pr_url}")
-                                except Exception as e:
-                                    print(f"Error creating PR: {e}")
-                            
-                            # Add to conversation history
+                            # --- End of Loop ---
+
+                            # Add final response to history
                             conversations[connection_id].append({
                                 "role": "assistant",
-                                "content": ai_response
+                                "content": final_response_text
                             })
                             
+                            # Generate Voice Audio
+                            audio_response = None
+                            try:
+                                # Filter out code blocks or long text if needed, but for now just TTS everything
+                                # Maybe skip TTS if it's just a PR confirmation? No, let's speak it.
+                                audio_response = voice_service.generate_speech(final_response_text)
+                            except Exception as e:
+                                print(f"Error generating voice: {e}")
+
                             # Prepare response with metadata
                             response_data = {
                                 "type": "ai_response",
-                                "text": ai_response
+                                "text": final_response_text
                             }
                             
                             # Add source metadata if GitHub context was used or PR was created
@@ -293,15 +351,17 @@ Your limitations:
                                 response_data["has_sources"] = True
                                 response_data["source_type"] = "github"
                             
-                            # Send AI response to frontend
+                            # Send text response
                             await websocket.send_text(json.dumps(response_data))
+                            
+                            # Send audio response (as binary)
+                            if audio_response:
+                                await websocket.send_bytes(audio_response)
                             
                         except Exception as e:
                             print(f"Error processing audio: {e}")
                             # CRITICAL: Clear buffer even on error to prevent corruption on next request
                             audio_buffer.clear()
-                            is_recording = False  # Reset for next recording
-                            await websocket.send_text(json.dumps({
                                 "type": "error",
                                 "message": f"Error processing audio: {str(e)}"
                             }))

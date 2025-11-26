@@ -48,8 +48,18 @@ export function useWebSocket(url?: string) {
             setConnectionState('connected');
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = async (event) => {
             try {
+                // Handle binary audio data
+                if (event.data instanceof Blob) {
+                    console.log('Received audio data, playing...');
+                    const audioUrl = URL.createObjectURL(event.data);
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch(e => console.error('Error playing audio:', e));
+                    return;
+                }
+
+                // Handle text data (JSON)
                 const data = JSON.parse(event.data);
                 const message: Message = {
                     ...data,
