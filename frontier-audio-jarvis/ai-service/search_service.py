@@ -1,20 +1,48 @@
 import requests
 from bs4 import BeautifulSoup
 from duckduckgo_search import DDGS
+import os
+from tavily import TavilyClient
 
 class SearchService:
     def __init__(self):
         self.ddgs = DDGS()
+        self.tavily_client = None
+        tavily_key = os.getenv("TAVILY_API_KEY")
+        if tavily_key:
+            try:
+                self.tavily_client = TavilyClient(api_key=tavily_key)
+                print("Tavily Search API initialized.")
+            except Exception as e:
+                print(f"Failed to initialize Tavily: {e}")
 
     def search(self, query, max_results=3):
         """
-        Performs a web search using DuckDuckGo.
-        Tries the library first, then falls back to custom HTML scraping.
+        Performs a web search using a hybrid strategy:
+        1. Open-Meteo for weather queries (Free, Robust).
+        2. Tavily API for general search (if key exists).
+        3. DuckDuckGo Library (Lite backend).
+        4. Custom HTML Scraper (Fallback).
         """
         try:
             print(f"Searching web for: {query}")
             
-            # Try library first (lite backend is often more reliable)
+            # 1. Special handling for weather queries (Open-Meteo)
+            if "weather" in query.lower():
+                weather_result = self._get_weather(query)
+                if weather_result:
+                    return weather_result
+
+            # 2. Tavily API (Best for general search)
+            if self.tavily_client:
+                try:
+                    print("Using Tavily Search API...")
+                    response = self.tavily_client.search(query, max_results=max_results)
+                    return self._format_tavily_results(response.get("results", []))
+                except Exception as e:
+                    print(f"Tavily search failed: {e}")
+
+            # 3. DuckDuckGo Library (Lite backend)
             try:
                 results = list(self.ddgs.text(query, max_results=max_results, backend="lite"))
                 if results:
@@ -22,13 +50,73 @@ class SearchService:
             except Exception as e:
                 print(f"Library search failed: {e}")
             
-            # Fallback to custom HTML scraping
+            # 4. Custom HTML Scraper (Fallback)
             print("Falling back to custom HTML scraping...")
             return self._custom_search(query, max_results)
             
         except Exception as e:
             print(f"Search error: {e}")
             return f"Error performing search: {str(e)}"
+
+    def _get_weather(self, query):
+        """
+        Extracts location and queries Open-Meteo API.
+        """
+        try:
+            # Simple location extraction (naive but effective for "weather in City")
+            # Remove "weather", "in", "forecast", etc.
+            clean_query = query.lower().replace("weather", "").replace("current", "").replace("forecast", "").replace(" in ", " ").strip()
+            
+            # Geocoding
+            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_query}&count=1&language=en&format=json"
+            geo_res = requests.get(geo_url).json()
+            
+            if not geo_res.get("results"):
+                return None
+                
+            location = geo_res["results"][0]
+            lat = location["latitude"]
+            lon = location["longitude"]
+            name = location["name"]
+            admin1 = location.get("admin1", "")
+            country = location.get("country", "")
+            
+            # Weather Data
+            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto"
+            w_res = requests.get(weather_url).json()
+            
+            current = w_res.get("current", {})
+            current_units = w_res.get("current_units", {})
+            
+            # WMO Weather Codes
+            weather_codes = {
+                0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+                45: "Fog", 48: "Depositing rime fog",
+                51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+                61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+                71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+                95: "Thunderstorm", 96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail"
+            }
+            condition = weather_codes.get(current.get("weather_code"), "Unknown")
+            
+            report = f"Weather Report for {name}, {admin1} ({country}):\n"
+            report += f"Condition: {condition}\n"
+            report += f"Temperature: {current.get('temperature_2m')}{current_units.get('temperature_2m')}\n"
+            report += f"Feels Like: {current.get('apparent_temperature')}{current_units.get('temperature_2m')}\n"
+            report += f"Humidity: {current.get('relative_humidity_2m')}{current_units.get('relative_humidity_2m')}\n"
+            report += f"Wind: {current.get('wind_speed_10m')}{current_units.get('wind_speed_10m')}\n"
+            
+            return report
+            
+        except Exception as e:
+            print(f"Open-Meteo error: {e}")
+            return None
+
+    def _format_tavily_results(self, results):
+        formatted_results = "Search Results (via Tavily):\n\n"
+        for i, result in enumerate(results, 1):
+            formatted_results += f"{i}. {result['title']}\n   {result['content']}\n   Source: {result['url']}\n\n"
+        return formatted_results
 
     def _custom_search(self, query, max_results):
         headers = {

@@ -8,3 +8,4 @@ pydub
 requests
 duckduckgo-search
 beautifulsoup4
+tavily-python
