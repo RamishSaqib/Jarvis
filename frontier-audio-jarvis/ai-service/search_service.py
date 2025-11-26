@@ -74,6 +74,11 @@ class SearchService:
                 # Fallback: simple cleanup if regex doesn't match
                 clean_query = query.lower().replace("weather", "").replace("current", "").replace("forecast", "").replace(" in ", " ").strip(" ?.,!")
             
+            # Open-Meteo often fails with "City, State" format. 
+            # It prefers just "City". Let's try to clean it further.
+            if "," in clean_query:
+                clean_query = clean_query.split(",")[0].strip()
+                
             print(f"Extracted location for weather: '{clean_query}'")
             
             # Geocoding
