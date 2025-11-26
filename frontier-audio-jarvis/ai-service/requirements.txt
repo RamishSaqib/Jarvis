@@ -7,3 +7,4 @@ websockets
 pydub
 requests
 duckduckgo-search
+beautifulsoup4
