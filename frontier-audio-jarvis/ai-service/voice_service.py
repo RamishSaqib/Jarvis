@@ -13,8 +13,8 @@ class VoiceService:
         try:
             print(f"Generating speech for: {text[:50]}...")
             response = self.client.audio.speech.create(
-                model="tts-1",
-                voice="alloy",
+                model="tts-1-hd",
+                voice="shimmer",
                 input=text
             )
             
