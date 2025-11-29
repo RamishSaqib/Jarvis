@@ -252,9 +252,9 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-4xl font-bold text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
-              Jarvis
+              JARVIS
             </h1>
-            <p className="text-gray-400 text-sm">Real-time Voice Assistant</p>
+            <p className="text-gray-400 text-sm">Real-time Voice Assistant Powered by the AI-vengers™</p>
           </div>
 
           {/* Connection Status & Controls */}
