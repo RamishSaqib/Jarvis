@@ -1,12 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 import os
 from tavily import TavilyClient
+from googlesearch import search as google_search
+from fake_useragent import UserAgent
+import random
+import time
 
 class SearchService:
     def __init__(self):
         self.ddgs = DDGS()
+        self.ua = UserAgent()
         self.tavily_client = None
         tavily_key = os.getenv("TAVILY_API_KEY")
         if tavily_key:
@@ -22,7 +27,8 @@ class SearchService:
         1. Open-Meteo for weather queries (Free, Robust).
         2. Tavily API for general search (if key exists).
         3. DuckDuckGo Library (Lite backend).
-        4. Custom HTML Scraper (Fallback).
+        4. Google Search (Fallback).
+        5. Custom HTML Scraper (Last Resort).
         """
         try:
             print(f"Searching web for: {query}")
@@ -49,14 +55,25 @@ class SearchService:
 
             # 3. DuckDuckGo Library (Lite backend)
             try:
+                print("Using DuckDuckGo (ddgs)...")
                 results = list(self.ddgs.text(query, max_results=max_results, backend="lite"))
                 if results:
                     return self._format_results(results)
             except Exception as e:
-                print(f"Library search failed: {e}")
+                print(f"DDG Library search failed: {e}")
                 errors.append(f"DDG Lib Error: {str(e)}")
             
-            # 4. Custom HTML Scraper (Fallback)
+            # 4. Google Search (Fallback)
+            try:
+                print("Falling back to Google Search...")
+                results = self._google_search(query, max_results)
+                if results:
+                    return self._format_results(results)
+            except Exception as e:
+                print(f"Google search failed: {e}")
+                errors.append(f"Google Error: {str(e)}")
+
+            # 5. Custom HTML Scraper (Last Resort)
             print("Falling back to custom HTML scraping...")
             scraper_result = self._custom_search(query, max_results)
             
@@ -148,13 +165,36 @@ class SearchService:
             formatted_results += f"{i}. {result['title']}\n   {result['content']}\n   Source: {result['url']}\n\n"
         return formatted_results
 
+    def _google_search(self, query, max_results):
+        """
+        Uses googlesearch-python as a fallback.
+        """
+        results = []
+        try:
+            # advanced=True returns Result objects with title, url, description
+            search_results = google_search(query, num_results=max_results, advanced=True)
+            for res in search_results:
+                results.append({
+                    "title": res.title,
+                    "href": res.url,
+                    "body": res.description
+                })
+        except Exception as e:
+            print(f"Google search internal error: {e}")
+            return None
+        return results
+
     def _custom_search(self, query, max_results):
+        # Rotate User-Agents to avoid blocking
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": self.ua.random
         }
         payload = {'q': query}
         
         try:
+            # Add a small random delay to be polite and avoid rate limits
+            time.sleep(random.uniform(0.5, 1.5))
+            
             response = requests.post("https://html.duckduckgo.com/html/", data=payload, headers=headers, timeout=10)
             response.raise_for_status()
             
