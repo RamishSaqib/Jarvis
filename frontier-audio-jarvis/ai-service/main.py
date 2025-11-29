@@ -171,7 +171,8 @@ Your limitations:
                                 transcription = client.audio.transcriptions.create(
                                     model="whisper-1",
                                     file=audio_file,
-                                    language="en"
+                                    language="en",
+                                    prompt="Jarvis, AI, code, function, variable, React, TypeScript, Python, API, database"
                                 )
                             
                             # Clean up temp file

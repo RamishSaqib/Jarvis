@@ -26,7 +26,8 @@ export function useAudioRecorder(
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
-                    sampleRate: 16000,
+                    sampleRate: 44100,
+                    channelCount: 1,
                 }
             });
 
@@ -35,6 +36,7 @@ export function useAudioRecorder(
             // Create MediaRecorder with webm format
             const mediaRecorder = new MediaRecorder(stream, {
                 mimeType: 'audio/webm;codecs=opus',
+                audioBitsPerSecond: 128000,
             });
 
             mediaRecorderRef.current = mediaRecorder;
