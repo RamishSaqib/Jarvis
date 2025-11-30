@@ -34,14 +34,19 @@ class SearchService:
         """
         try:
             print(f"Searching web for: {query}")
+            errors = []
             
             # 1. Special handling for weather queries (Open-Meteo)
             if "weather" in query.lower():
-                weather_result = self._get_weather(query)
-                if weather_result:
-                    return weather_result
-
-            errors = []
+                try:
+                    weather_result = self._get_weather(query)
+                    if weather_result:
+                        return weather_result
+                    else:
+                        errors.append("Open-Meteo: No results or failed")
+                except Exception as e:
+                    print(f"Open-Meteo failed: {e}")
+                    errors.append(f"Open-Meteo Error: {str(e)}")
 
             # 2. Tavily API (Best for general search)
             if self.tavily_client:
@@ -61,6 +66,8 @@ class SearchService:
                 results = list(self.ddgs.text(query, max_results=max_results, backend="lite"))
                 if results:
                     return self._format_results(results)
+                else:
+                    errors.append("DDG: No results found")
             except Exception as e:
                 print(f"DDG Library search failed: {e}")
                 errors.append(f"DDG Lib Error: {str(e)}")
@@ -71,6 +78,8 @@ class SearchService:
                 wiki_result = self._wikipedia_search(query)
                 if wiki_result:
                     return wiki_result
+                else:
+                    errors.append("Wikipedia: No results found")
             except Exception as e:
                 print(f"Wikipedia search failed: {e}")
                 errors.append(f"Wikipedia Error: {str(e)}")
@@ -81,6 +90,8 @@ class SearchService:
                 results = self._google_search(query, max_results)
                 if results:
                     return self._format_results(results)
+                else:
+                    errors.append("Google: No results found")
             except Exception as e:
                 print(f"Google search failed: {e}")
                 errors.append(f"Google Error: {str(e)}")
@@ -97,6 +108,7 @@ class SearchService:
             
             # If we get here, all methods failed
             error_summary = "; ".join(errors)
+            print(f"All search methods failed. Errors: {error_summary}")
             return f"Unable to perform search. Details: {error_summary}"
             
         except Exception as e:
@@ -128,7 +140,8 @@ class SearchService:
             
             # Geocoding
             geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_query}&count=1&language=en&format=json"
-            geo_res = requests.get(geo_url).json()
+            headers = {"User-Agent": self.ua.random}
+            geo_res = requests.get(geo_url, headers=headers, timeout=5).json()
             
             if not geo_res.get("results"):
                 return None
@@ -142,7 +155,7 @@ class SearchService:
             
             # Weather Data
             weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto"
-            w_res = requests.get(weather_url).json()
+            w_res = requests.get(weather_url, headers=headers, timeout=5).json()
             
             current = w_res.get("current", {})
             current_units = w_res.get("current_units", {})
