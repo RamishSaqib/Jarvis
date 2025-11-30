@@ -16,7 +16,7 @@ export default function Home() {
   const lastActivityRef = useRef<number>(Date.now());
   const { playSound } = useSoundEffects();
 
-  const { recordingState, startRecording, stopRecording, error: audioError } = useAudioRecorder(
+  const { recordingState, startRecording, stopRecording, error: audioError, currentVolume } = useAudioRecorder(
     (audioBlob) => {
       // Send audio data to backend via WebSocket
       console.log('Sending audio chunk:', audioBlob.size, 'bytes');
@@ -440,6 +440,18 @@ export default function Home() {
                 </svg>
               </div>
             </button>
+
+            {/* Volume Indicator (Debug) */}
+            {isRecording && (
+              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-500 transition-all duration-75"
+                  style={{ width: `${Math.min(currentVolume * 500, 100)}%` }}
+                />
+                {/* Threshold Marker (0.05 * 500 = 25%) */}
+                <div className="absolute top-0 bottom-0 left-[25%] w-0.5 bg-red-500/50" />
+              </div>
+            )}
 
             {/* Stop/Interrupt Button */}
             {isProcessing && (

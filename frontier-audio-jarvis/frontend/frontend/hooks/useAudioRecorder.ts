@@ -11,9 +11,11 @@ export interface AudioRecorderHook {
 
 export function useAudioRecorder(
     onAudioData?: (data: Blob) => void
-): AudioRecorderHook {
+): AudioRecorderHook & { currentVolume: number } {
     const [recordingState, setRecordingState] = useState<RecordingState>('idle');
     const [error, setError] = useState<string | null>(null);
+    const [currentVolume, setCurrentVolume] = useState<number>(0);
+
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
 
@@ -23,10 +25,9 @@ export function useAudioRecorder(
     const silenceStartRef = useRef<number | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const isRecordingRef = useRef<boolean>(false);
-    const isStoppingRef = useRef<boolean>(false); // Guard against multiple stops
 
-    const SILENCE_THRESHOLD = 0.1; // Increased significantly to handle noisy environments
-    const SILENCE_DURATION = 1000; // Reduced to 1 second for faster response
+    const SILENCE_THRESHOLD = 0.05; // Adjusted to 0.05 (5%)
+    const SILENCE_DURATION = 1500; // Back to 1.5s for stability
 
     const cleanupAudioContext = useCallback(() => {
         if (animationFrameRef.current) {
@@ -39,23 +40,26 @@ export function useAudioRecorder(
         }
         analyserRef.current = null;
         silenceStartRef.current = null;
+        setCurrentVolume(0);
     }, []);
 
     const stopRecording = useCallback(() => {
-        // Prevent multiple calls
-        if (isStoppingRef.current) return;
+        console.log('stopRecording called. State:', mediaRecorderRef.current?.state);
+
+        // Always force state to idle immediately to update UI
+        setRecordingState('idle');
+        isRecordingRef.current = false;
 
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            console.log('Stopping recording...');
-            isStoppingRef.current = true;
             try {
                 mediaRecorderRef.current.stop();
             } catch (error) {
                 console.error('Error stopping media recorder:', error);
-                isStoppingRef.current = false; // Reset guard if stop fails
-                isRecordingRef.current = false;
                 cleanupAudioContext();
             }
+        } else {
+            // If not recording, just clean up
+            cleanupAudioContext();
         }
     }, [cleanupAudioContext]);
 
@@ -73,10 +77,8 @@ export function useAudioRecorder(
         }
         const rms = Math.sqrt(sum / bufferLength);
 
-        // Debug logging (throttled)
-        if (Math.random() < 0.05) {
-            console.log(`Current RMS: ${rms.toFixed(4)} (Threshold: ${SILENCE_THRESHOLD})`);
-        }
+        // Update volume state for UI visualization
+        setCurrentVolume(rms);
 
         // Check for silence
         if (rms < SILENCE_THRESHOLD) {
@@ -90,7 +92,6 @@ export function useAudioRecorder(
         } else {
             // Reset silence timer if noise is detected
             if (silenceStartRef.current !== null) {
-                // console.log('Noise detected, resetting silence timer');
                 silenceStartRef.current = null;
             }
         }
@@ -101,7 +102,6 @@ export function useAudioRecorder(
     const startRecording = useCallback(async () => {
         try {
             setError(null);
-            isStoppingRef.current = false; // Reset stop guard
 
             // Request microphone access
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -148,10 +148,10 @@ export function useAudioRecorder(
             };
 
             mediaRecorder.onstop = () => {
-                console.log('MediaRecorder stopped');
+                console.log('MediaRecorder stopped (onstop event)');
+                // Ensure cleanup happens even if stopRecording wasn't called explicitly
                 setRecordingState('idle');
                 isRecordingRef.current = false;
-                isStoppingRef.current = false;
                 cleanupAudioContext();
 
                 // Clean up stream
@@ -182,5 +182,6 @@ export function useAudioRecorder(
         startRecording,
         stopRecording,
         error,
+        currentVolume,
     };
 }
