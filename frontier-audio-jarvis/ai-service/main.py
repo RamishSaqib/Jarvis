@@ -200,8 +200,40 @@ Your limitations:
                                 audio_buffer.clear()
                                 continue
                             
-                            transcribed_text = transcription.text
-                            print(f"Transcription: {transcribed_text}")
+                            transcribed_text = transcription.text.strip()
+                            print(f"Raw Transcription: {transcribed_text}")
+                            
+                            # Filter out common Whisper hallucinations
+                            HALLUCINATIONS = [
+                                "Thank you for watching",
+                                "Thanks for watching",
+                                "Let us know in the comments",
+                                "Subscribe",
+                                "Like and subscribe",
+                                "See you in the next video",
+                                "Bye",
+                                "you" # Sometimes it just outputs "you"
+                            ]
+                            
+                            # Check if the transcription is JUST a hallucination (case insensitive)
+                            is_hallucination = False
+                            for phrase in HALLUCINATIONS:
+                                if phrase.lower() in transcribed_text.lower():
+                                    # If it's a short transcription containing these phrases, it's likely garbage
+                                    if len(transcribed_text) < len(phrase) + 10:
+                                        is_hallucination = True
+                                        break
+                            
+                            if is_hallucination or not transcribed_text:
+                                print(f"Filtered hallucination/empty: '{transcribed_text}'")
+                                await websocket.send_text(json.dumps({
+                                    "type": "error",
+                                    "message": "No speech detected (filtered noise)"
+                                }))
+                                audio_buffer.clear()
+                                continue
+
+                            print(f"Clean Transcription: {transcribed_text}")
                             
                             # Send transcription to frontend
                             await websocket.send_text(json.dumps({
