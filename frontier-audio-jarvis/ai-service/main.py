@@ -82,31 +82,26 @@ async def websocket_endpoint(websocket: WebSocket):
                 "content": """You are Jarvis, a helpful and intelligent voice assistant. Follow these guidelines:
             
 1. Provide concise, accurate, and friendly responses.
-2. **ALWAYS** use the `SEARCH_WEB` tool when asked about:
-   - Current events (news, sports, weather).
-   - Information from 2022, 2023, 2024, or later.
-   - Specific facts you might not know or that might have changed.
-   - "My Anime List" or "MAL" (search `myanimelist.net`).
-3. If you're uncertain, use `SEARCH_WEB` instead of guessing.
+2. Always cite your sources when using external information.
+3. If you're uncertain about something, clearly state "I'm not certain" or "I don't know".
 4. When providing code examples, include links to documentation or GitHub repositories.
-5. Express confidence levels when appropriate.
+5. Express confidence levels when appropriate (e.g., "I'm confident that...", "Based on the documentation...").
+6. Avoid speculation - stick to facts you can verify.
+7. If a question is outside your knowledge, suggest where the user might find the answer.
 
-You have access to the following tools:
-
-- **Web Search**:
-  To search, your response must start with:
-  SEARCH_WEB: {"query": "your search query"}
-  
-  Example:
-  User: "Who won the Super Bowl in 2024?"
-  Jarvis: SEARCH_WEB: {"query": "Super Bowl 2024 winner"}
-
-- **GitHub Integration**: You can search public GitHub repositories.
-- **PR Creation**: Use `CREATE_PR` format.
+You have access to the following tools and capabilities:
+- **Web Search**: You can search the web for real-time information. Use this when asked about current events, facts, or things you don't know.
+  SEARCH_WEB: {"query": "search query here"}
+  - **IMPORTANT**: If the user asks about "my anime list" or "MAL", they are referring to the public website `myanimelist.net`. You SHOULD search this website for ratings and information. It is NOT a private file.
+- **GitHub Integration**: You can search public GitHub repositories for code and documentation.
+- **Real-time Interaction**: You can be interrupted by the user at any time.
+- **PR Creation**: If the user asks you to create a pull request, you can do so by responding with a special command format:
+  CREATE_PR: {"repo": "owner/repo", "title": "PR title", "body": "PR description", "branch": "branch-name", "file_path": "path/to/file", "file_content": "file content", "commit_message": "commit message"}
 
 Your limitations:
 - You cannot access the user's private files or local system unless explicitly provided.
 - You cannot perform actions on the user's behalf outside of this chat interface.
+- PR creation requires a valid GitHub token with write access.
 """
             }
         ]
@@ -127,10 +122,6 @@ Your limitations:
         
         while True:
             message = await websocket.receive()
-            
-            if message["type"] == "websocket.disconnect":
-                print(f"Client disconnected (ID: {connection_id})")
-                break
             
             if "text" in message:
                 data = json.loads(message["text"])
@@ -188,7 +179,7 @@ Your limitations:
                                     model="whisper-1",
                                     file=audio_file,
                                     language="en",
-                                    prompt="Jarvis, AI, code, function, variable, React, TypeScript, Python, API, database, Anime, Manga, Naruto, One Piece, Movies, Music, Weather, News, Search"
+                                    prompt="Jarvis, AI, code, function, variable, React, TypeScript, Python, API, database, Anime, Manga, Naruto, One Piece, Movies, Music, Weather, News, Search, Super Bowl, NFL, 2024, 2025, winner, game, sports"
                                 )
                             
                             # Clean up temp file
@@ -200,40 +191,8 @@ Your limitations:
                                 audio_buffer.clear()
                                 continue
                             
-                            transcribed_text = transcription.text.strip()
-                            print(f"Raw Transcription: {transcribed_text}")
-                            
-                            # Filter out common Whisper hallucinations
-                            HALLUCINATIONS = [
-                                "Thank you for watching",
-                                "Thanks for watching",
-                                "Let us know in the comments",
-                                "Subscribe",
-                                "Like and subscribe",
-                                "See you in the next video",
-                                "Bye",
-                                "you" # Sometimes it just outputs "you"
-                            ]
-                            
-                            # Check if the transcription is JUST a hallucination (case insensitive)
-                            is_hallucination = False
-                            for phrase in HALLUCINATIONS:
-                                if phrase.lower() in transcribed_text.lower():
-                                    # If it's a short transcription containing these phrases, it's likely garbage
-                                    if len(transcribed_text) < len(phrase) + 10:
-                                        is_hallucination = True
-                                        break
-                            
-                            if is_hallucination or not transcribed_text:
-                                print(f"Filtered hallucination/empty: '{transcribed_text}'")
-                                await websocket.send_text(json.dumps({
-                                    "type": "error",
-                                    "message": "No speech detected (filtered noise)"
-                                }))
-                                audio_buffer.clear()
-                                continue
-
-                            print(f"Clean Transcription: {transcribed_text}")
+                            transcribed_text = transcription.text
+                            print(f"Transcription: {transcribed_text}")
                             
                             # Send transcription to frontend
                             await websocket.send_text(json.dumps({
