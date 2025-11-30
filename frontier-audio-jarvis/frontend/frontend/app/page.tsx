@@ -1,47 +1,28 @@
 'use client';
 
-import { useWebSocket } from '../hooks/useWebSocket';
-import { useAudioRecorder } from '../hooks/useAudioRecorder';
-import { useSoundEffects } from '../hooks/useSoundEffects';
-import { useState, useEffect, useRef, useCallback } from 'react';
-
-interface Message {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  type?: 'transcription' | 'ai_response' | 'status' | 'error' | 'system';
-  text?: string;
-  has_sources?: boolean;
-  timestamp?: string;
-  message?: string; // For status messages
-}
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useState, useEffect, useRef } from 'react';
 
 export default function Home() {
-  const { connectionState, sendMessage } = useWebSocket();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { connectionState, messages, sendMessage } = useWebSocket();
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isPassiveMode, setIsPassiveMode] = useState(false);
   const [showAutoSleepMessage, setShowAutoSleepMessage] = useState(false);
   const [isContinuousMode, setIsContinuousMode] = useState(false);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const [isDebugOpen, setIsDebugOpen] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const { playSound } = useSoundEffects();
-
-  const addDebugLog = useCallback((msg: string) => {
-    setDebugLogs(prev => [...prev.slice(-19), `[${new Date().toLocaleTimeString()}] ${msg}`]);
-  }, []);
 
   const { recordingState, startRecording, stopRecording, error: audioError, currentVolume } = useAudioRecorder(
     (audioBlob) => {
       // Send audio data to backend via WebSocket
       console.log('Sending audio chunk:', audioBlob.size, 'bytes');
-      // addDebugLog(`Sending audio chunk: ${audioBlob.size} bytes`); // Too spammy
       sendMessage(audioBlob);
-    },
-    (msg) => addDebugLog(msg)
+    }
   );
 
   // Filter out repetitive "Processed audio" messages to reduce spam
@@ -496,90 +477,80 @@ export default function Home() {
               </div>
             </button>
 
-            {/* Debug Toggle */}
-            <button
-              onClick={() => setIsDebugOpen(!isDebugOpen)}
-              className={`p-2 rounded-full transition-colors ${isDebugOpen ? 'bg-yellow-500/20 text-yellow-400' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-              title="Toggle Debug Console"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-            </button>
+            {/* Volume Indicator */}
+            {isRecording && (
+              <div className="w-64 mt-4">
+                <div className="flex justify-between text-xs text-white/50 mb-1">
+                  <span>Silence</span>
+                  <span>Vol: {(currentVolume * 100).toFixed(1)}%</span>
+                  <span>Loud</span>
+                </div>
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden relative">
+                  {/* Threshold Marker (0.05 = 5% of raw, but mapped to visual scale) */}
+                  {/* If we scale visual by 500, then 0.05 * 500 = 25% */}
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: '25%' }}></div>
+                  <div
+                    className="h-full bg-green-500 transition-all duration-75 ease-out"
+                    style={{ width: `${Math.min(currentVolume * 500, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="text-[10px] text-center text-white/30 mt-1">
+                  Red line = Silence Threshold
+                </div>
+              </div>
+            )}
+
+            {/* Stop/Interrupt Button */}
+            {isProcessing && (
+              <button
+                onClick={handleInterrupt}
+                className="relative w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-500/50 transition-all duration-300 transform hover:scale-105 active:scale-95"
+                title="Stop AI processing"
+              >
+                <div className="relative z-10 flex items-center justify-center h-full">
+                  <svg
+                    className="w-8 h-8 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </div>
+              </button>
+            )}
           </div>
 
-          {/* Volume Indicator */}
-          {recordingState === 'recording' && (
-            <div className="w-64 h-2 bg-gray-700 rounded-full mt-4 overflow-hidden relative">
-              {/* Threshold Marker (0.02 = 2%) */}
-              <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: '2%' }}></div>
-              <div
-                className="h-full bg-green-500 transition-all duration-100 ease-out"
-                style={{ width: `${Math.min(currentVolume * 100, 100)}%` }}
-              ></div>
-            </div>
-          )}
-
-          {/* Debug Console */}
-          {isDebugOpen && (
-            <div className="w-full max-w-2xl mt-4 p-4 bg-black/50 rounded-lg border border-white/10 font-mono text-xs text-green-400 h-32 overflow-y-auto">
-              {debugLogs.map((log, i) => (
-                <div key={i}>{log}</div>
-              ))}
-              {debugLogs.length === 0 && <div className="text-white/30">Debug logs will appear here...</div>}
-            </div>
-          )}
-
-          {/* Stop/Interrupt Button */}
-          {isProcessing && (
-            <button
-              onClick={handleInterrupt}
-              className="relative w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-500/50 transition-all duration-300 transform hover:scale-105 active:scale-95"
-              title="Stop AI processing"
-            >
-              <div className="relative z-10 flex items-center justify-center h-full">
-                <svg
-                  className="w-8 h-8 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </div>
-            </button>
-          )}
+          {/* Status Text */}
+          <p className="text-white/70 text-sm">
+            {isProcessing ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                AI is processing... Click ✕ to stop
+              </span>
+            ) : isRecording ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                Recording... Click to stop
+              </span>
+            ) : isPassiveMode ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                Listening for "Jarvis"...
+              </span>
+            ) : connectionState === 'connected' ? (
+              'Click the microphone to start'
+            ) : (
+              'Waiting for connection...'
+            )}
+          </p>
         </div>
-
-        {/* Status Text */}
-        <p className="text-white/70 text-sm">
-          {isProcessing ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-              AI is processing... Click ✕ to stop
-            </span>
-          ) : isRecording ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              Recording... Click to stop
-            </span>
-          ) : isPassiveMode ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              Listening for "Jarvis"...
-            </span>
-          ) : connectionState === 'connected' ? (
-            'Click the microphone to start'
-          ) : (
-            'Waiting for connection...'
-          )}
-        </p>
       </div>
-    </main>
+    </div>
   );
 }
