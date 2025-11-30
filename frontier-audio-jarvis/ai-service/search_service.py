@@ -49,16 +49,53 @@ class SearchService:
                     errors.append(f"Open-Meteo Error: {str(e)}")
 
             # 2. Tavily API (Best for general search)
+            # 2. Tavily API (Best for general search)
             if self.tavily_client:
                 try:
-                    print("Using Tavily Search API...")
+                    print("Using Tavily Search API (Client)...")
                     response = self.tavily_client.search(query, max_results=max_results)
                     return self._format_tavily_results(response.get("results", []))
                 except Exception as e:
-                    print(f"Tavily search failed: {e}")
-                    errors.append(f"Tavily Error: {str(e)}")
+                    print(f"Tavily Client failed: {e}. Trying direct HTTP...")
+                    try:
+                        # Direct HTTP Fallback
+                        payload = {
+                            "api_key": os.getenv("TAVILY_API_KEY"),
+                            "query": query,
+                            "search_depth": "basic",
+                            "include_answer": False,
+                            "include_images": False,
+                            "include_raw_content": False,
+                            "max_results": max_results
+                        }
+                        response = requests.post("https://api.tavily.com/search", json=payload, timeout=10)
+                        response.raise_for_status()
+                        data = response.json()
+                        return self._format_tavily_results(data.get("results", []))
+                    except Exception as http_e:
+                         print(f"Tavily HTTP failed: {http_e}")
+                         errors.append(f"Tavily Error: {str(e)} | HTTP: {str(http_e)}")
             else:
-                errors.append("Tavily: Key not configured")
+                # Try direct HTTP even if client init failed (e.g. library issue) but key exists
+                tavily_key = os.getenv("TAVILY_API_KEY")
+                if tavily_key:
+                     try:
+                        print("Tavily Client missing, trying direct HTTP...")
+                        payload = {
+                            "api_key": tavily_key,
+                            "query": query,
+                            "search_depth": "basic",
+                            "max_results": max_results
+                        }
+                        response = requests.post("https://api.tavily.com/search", json=payload, timeout=10)
+                        response.raise_for_status()
+                        data = response.json()
+                        return self._format_tavily_results(data.get("results", []))
+                     except Exception as http_e:
+                         print(f"Tavily HTTP failed: {http_e}")
+                         errors.append(f"Tavily Error: Key exists but client/HTTP failed. {str(http_e)}")
+                else:
+                    errors.append("Tavily: Key not configured")
 
             # 3. DuckDuckGo Library (Lite backend)
             try:

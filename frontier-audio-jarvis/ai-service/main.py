@@ -40,6 +40,12 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Initialize GitHub service
 github_service = GitHubService()
 
+# Initialize Search service
+search_service = SearchService()
+
+# Initialize Voice service
+voice_service = VoiceService(client)
+
 # Store conversation history per connection
 conversations = {}
 # Store interrupt flags per connection
