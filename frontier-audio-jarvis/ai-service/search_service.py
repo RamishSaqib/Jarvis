@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 import os
 from tavily import TavilyClient
 from googlesearch import search as google_search

@@ -6,7 +6,7 @@ python-dotenv
 websockets
 pydub
 requests
-ddgs
+duckduckgo-search
 beautifulsoup4
 tavily-python
 googlesearch-python

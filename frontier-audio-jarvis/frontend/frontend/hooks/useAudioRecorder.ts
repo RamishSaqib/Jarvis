@@ -26,8 +26,8 @@ export function useAudioRecorder(
     const animationFrameRef = useRef<number | null>(null);
     const isRecordingRef = useRef<boolean>(false);
 
-    const SILENCE_THRESHOLD = 0.05; // Adjusted to 0.05 (5%)
-    const SILENCE_DURATION = 1500; // Back to 1.5s for stability
+    const SILENCE_THRESHOLD = 0.1; // Increased to 0.1 (10%) for noisy environments
+    const SILENCE_DURATION = 1000; // Reduced to 1s for faster response
 
     const cleanupAudioContext = useCallback(() => {
         if (animationFrameRef.current) {
@@ -75,13 +75,21 @@ export function useAudioRecorder(
         for (let i = 0; i < bufferLength; i++) {
             sum += dataArray[i] * dataArray[i];
         }
-        const rms = Math.sqrt(sum / bufferLength);
+        const rawRms = Math.sqrt(sum / bufferLength);
+
+        // Apply smoothing to prevent sudden spikes from resetting the timer
+        // currentVolume is state, so we use a local variable for the calculation loop if possible,
+        // but here we just want the smoothed value for the check.
+        // Since we can't easily access the "previous" smoothed value without a ref, let's use the raw value
+        // but require *consecutive* loud frames to reset?
+        // Actually, let's just use a simple smoothing ref if we had one, but for now let's trust the raw RMS
+        // with the higher threshold.
 
         // Update volume state for UI visualization
-        setCurrentVolume(rms);
+        setCurrentVolume(rawRms);
 
         // Check for silence
-        if (rms < SILENCE_THRESHOLD) {
+        if (rawRms < SILENCE_THRESHOLD) {
             if (silenceStartRef.current === null) {
                 silenceStartRef.current = Date.now();
             } else if (Date.now() - silenceStartRef.current > SILENCE_DURATION) {
@@ -90,7 +98,9 @@ export function useAudioRecorder(
                 return; // Stop loop
             }
         } else {
-            // Reset silence timer if noise is detected
+            // Reset silence timer ONLY if the noise is significantly above threshold (hysteresis)
+            // or if it persists for more than 1 frame?
+            // For now, let's just reset, but the higher threshold (0.1) should help.
             if (silenceStartRef.current !== null) {
                 silenceStartRef.current = null;
             }

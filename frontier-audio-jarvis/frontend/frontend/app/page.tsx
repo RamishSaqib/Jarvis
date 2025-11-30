@@ -12,6 +12,7 @@ export default function Home() {
   const [isMuted, setIsMuted] = useState(false);
   const [isPassiveMode, setIsPassiveMode] = useState(false);
   const [showAutoSleepMessage, setShowAutoSleepMessage] = useState(false);
+  const [isContinuousMode, setIsContinuousMode] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const { playSound } = useSoundEffects();
@@ -53,15 +54,39 @@ export default function Home() {
 
         // Text-to-Speech for AI response
         if (!isMuted && lastMessage.text) {
+          // Cancel any ongoing speech first
+          window.speechSynthesis.cancel();
+
           const utterance = new SpeechSynthesisUtterance(lastMessage.text);
+
+          // Continuous Mode: Restart recording after TTS finishes
+          utterance.onend = () => {
+            if (isContinuousMode) {
+              console.log('TTS finished, restarting recording (Continuous Mode)');
+              // Small delay to avoid picking up the very end of the TTS
+              setTimeout(() => {
+                playSound('start');
+                startRecording();
+                setIsRecording(true);
+              }, 500);
+            }
+          };
+
           window.speechSynthesis.speak(utterance);
+        } else if (isContinuousMode) {
+          // If muted but continuous mode is on, restart immediately after a short delay
+          setTimeout(() => {
+            playSound('start');
+            startRecording();
+            setIsRecording(true);
+          }, 1000);
         }
       } else if (lastMessage.type === 'error') {
         setIsProcessing(false);
         playSound('error');
       }
     }
-  }, [messages, isMuted, playSound]);
+  }, [messages, isMuted, playSound, isContinuousMode, startRecording]);
 
   // Passive Listening (Wake Word) Logic
   useEffect(() => {
@@ -267,6 +292,17 @@ export default function Home() {
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+
+            {/* Continuous Mode Toggle */}
+            <button
+              onClick={() => setIsContinuousMode(!isContinuousMode)}
+              className={`p-2 rounded-full transition-colors ${isContinuousMode ? 'bg-blue-500/20 text-blue-400' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+              title={isContinuousMode ? "Continuous Mode On (Auto-restart recording)" : "Enable Continuous Mode"}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
             </button>
 
