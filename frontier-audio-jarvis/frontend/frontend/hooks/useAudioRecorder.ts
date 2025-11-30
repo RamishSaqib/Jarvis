@@ -10,7 +10,8 @@ export interface AudioRecorderHook {
 }
 
 export function useAudioRecorder(
-    onAudioData?: (data: Blob) => void
+    onAudioData?: (data: Blob) => void,
+    onDebugLog?: (message: string) => void
 ): AudioRecorderHook & { currentVolume: number } {
     const [recordingState, setRecordingState] = useState<RecordingState>('idle');
     const [error, setError] = useState<string | null>(null);
@@ -26,8 +27,8 @@ export function useAudioRecorder(
     const animationFrameRef = useRef<number | null>(null);
     const isRecordingRef = useRef<boolean>(false);
 
-    const SILENCE_THRESHOLD = 0.1; // Increased to 0.1 (10%) for noisy environments
-    const SILENCE_DURATION = 1000; // Reduced to 1s for faster response
+    const SILENCE_THRESHOLD = 0.02; // Reduced to 2% to be very sensitive
+    const SILENCE_DURATION = 1000; // 1s duration
 
     const cleanupAudioContext = useCallback(() => {
         if (animationFrameRef.current) {
@@ -92,8 +93,11 @@ export function useAudioRecorder(
         if (rawRms < SILENCE_THRESHOLD) {
             if (silenceStartRef.current === null) {
                 silenceStartRef.current = Date.now();
+                // onDebugLog?.('Silence started...'); // Too spammy?
             } else if (Date.now() - silenceStartRef.current > SILENCE_DURATION) {
-                console.log('Silence detected (duration exceeded), stopping recording...');
+                const msg = `Silence detected (${Date.now() - silenceStartRef.current}ms > ${SILENCE_DURATION}ms), stopping...`;
+                console.log(msg);
+                onDebugLog?.(msg);
                 stopRecording();
                 return; // Stop loop
             }
