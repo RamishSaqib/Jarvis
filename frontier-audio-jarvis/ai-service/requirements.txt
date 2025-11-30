@@ -11,3 +11,4 @@ beautifulsoup4
 tavily-python
 googlesearch-python
 fake-useragent
+wikipedia

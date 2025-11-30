@@ -7,6 +7,7 @@ from googlesearch import search as google_search
 from fake_useragent import UserAgent
 import random
 import time
+import wikipedia
 
 class SearchService:
     def __init__(self):
@@ -27,8 +28,9 @@ class SearchService:
         1. Open-Meteo for weather queries (Free, Robust).
         2. Tavily API for general search (if key exists).
         3. DuckDuckGo Library (Lite backend).
-        4. Google Search (Fallback).
-        5. Custom HTML Scraper (Last Resort).
+        4. Wikipedia (Reliable for facts).
+        5. Google Search (Fallback).
+        6. Custom HTML Scraper (Last Resort).
         """
         try:
             print(f"Searching web for: {query}")
@@ -63,7 +65,17 @@ class SearchService:
                 print(f"DDG Library search failed: {e}")
                 errors.append(f"DDG Lib Error: {str(e)}")
             
-            # 4. Google Search (Fallback)
+            # 4. Wikipedia (Reliable for facts)
+            try:
+                print("Falling back to Wikipedia...")
+                wiki_result = self._wikipedia_search(query)
+                if wiki_result:
+                    return wiki_result
+            except Exception as e:
+                print(f"Wikipedia search failed: {e}")
+                errors.append(f"Wikipedia Error: {str(e)}")
+
+            # 5. Google Search (Fallback)
             try:
                 print("Falling back to Google Search...")
                 results = self._google_search(query, max_results)
@@ -73,7 +85,7 @@ class SearchService:
                 print(f"Google search failed: {e}")
                 errors.append(f"Google Error: {str(e)}")
 
-            # 5. Custom HTML Scraper (Last Resort)
+            # 6. Custom HTML Scraper (Last Resort)
             print("Falling back to custom HTML scraping...")
             scraper_result = self._custom_search(query, max_results)
             
@@ -164,6 +176,29 @@ class SearchService:
         for i, result in enumerate(results, 1):
             formatted_results += f"{i}. {result['title']}\n   {result['content']}\n   Source: {result['url']}\n\n"
         return formatted_results
+
+    def _wikipedia_search(self, query):
+        """
+        Uses wikipedia library as a reliable fallback for facts.
+        """
+        try:
+            # Search for pages
+            search_results = wikipedia.search(query, results=1)
+            if not search_results:
+                return None
+            
+            page_title = search_results[0]
+            # Get page summary
+            summary = wikipedia.summary(page_title, sentences=3)
+            page = wikipedia.page(page_title, auto_suggest=False)
+            
+            formatted_result = "Search Results (via Wikipedia):\n\n"
+            formatted_result += f"1. {page_title}\n   {summary}\n   Source: {page.url}\n\n"
+            
+            return formatted_result
+        except Exception as e:
+            print(f"Wikipedia internal error: {e}")
+            return None
 
     def _google_search(self, query, max_results):
         """
