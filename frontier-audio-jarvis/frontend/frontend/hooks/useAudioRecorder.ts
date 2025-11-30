@@ -23,8 +23,9 @@ export function useAudioRecorder(
     const silenceStartRef = useRef<number | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const isRecordingRef = useRef<boolean>(false);
+    const isStoppingRef = useRef<boolean>(false); // Guard against multiple stops
 
-    const SILENCE_THRESHOLD = 0.015; // Tuned for voice vs background noise
+    const SILENCE_THRESHOLD = 0.04; // Increased from 0.015 to handle background noise
     const SILENCE_DURATION = 1500; // 1.5 seconds
 
     const cleanupAudioContext = useCallback(() => {
@@ -41,7 +42,12 @@ export function useAudioRecorder(
     }, []);
 
     const stopRecording = useCallback(() => {
+        // Prevent multiple calls
+        if (isStoppingRef.current) return;
+
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            console.log('Stopping recording...');
+            isStoppingRef.current = true;
             mediaRecorderRef.current.stop();
             isRecordingRef.current = false;
             cleanupAudioContext();
@@ -62,18 +68,26 @@ export function useAudioRecorder(
         }
         const rms = Math.sqrt(sum / bufferLength);
 
+        // Debug logging (throttled)
+        if (Math.random() < 0.05) {
+            console.log(`Current RMS: ${rms.toFixed(4)} (Threshold: ${SILENCE_THRESHOLD})`);
+        }
+
         // Check for silence
         if (rms < SILENCE_THRESHOLD) {
             if (silenceStartRef.current === null) {
                 silenceStartRef.current = Date.now();
             } else if (Date.now() - silenceStartRef.current > SILENCE_DURATION) {
-                console.log('Silence detected, stopping recording...');
+                console.log('Silence detected (duration exceeded), stopping recording...');
                 stopRecording();
                 return; // Stop loop
             }
         } else {
             // Reset silence timer if noise is detected
-            silenceStartRef.current = null;
+            if (silenceStartRef.current !== null) {
+                // console.log('Noise detected, resetting silence timer');
+                silenceStartRef.current = null;
+            }
         }
 
         animationFrameRef.current = requestAnimationFrame(detectSilence);
@@ -82,6 +96,7 @@ export function useAudioRecorder(
     const startRecording = useCallback(async () => {
         try {
             setError(null);
+            isStoppingRef.current = false; // Reset stop guard
 
             // Request microphone access
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -128,8 +143,10 @@ export function useAudioRecorder(
             };
 
             mediaRecorder.onstop = () => {
+                console.log('MediaRecorder stopped');
                 setRecordingState('idle');
                 isRecordingRef.current = false;
+                isStoppingRef.current = false;
                 cleanupAudioContext();
 
                 // Clean up stream
