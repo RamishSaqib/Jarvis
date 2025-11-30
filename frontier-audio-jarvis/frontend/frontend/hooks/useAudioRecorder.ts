@@ -25,8 +25,8 @@ export function useAudioRecorder(
     const isRecordingRef = useRef<boolean>(false);
     const isStoppingRef = useRef<boolean>(false); // Guard against multiple stops
 
-    const SILENCE_THRESHOLD = 0.04; // Increased from 0.015 to handle background noise
-    const SILENCE_DURATION = 1500; // 1.5 seconds
+    const SILENCE_THRESHOLD = 0.1; // Increased significantly to handle noisy environments
+    const SILENCE_DURATION = 1000; // Reduced to 1 second for faster response
 
     const cleanupAudioContext = useCallback(() => {
         if (animationFrameRef.current) {
@@ -48,9 +48,14 @@ export function useAudioRecorder(
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             console.log('Stopping recording...');
             isStoppingRef.current = true;
-            mediaRecorderRef.current.stop();
-            isRecordingRef.current = false;
-            cleanupAudioContext();
+            try {
+                mediaRecorderRef.current.stop();
+            } catch (error) {
+                console.error('Error stopping media recorder:', error);
+                isStoppingRef.current = false; // Reset guard if stop fails
+                isRecordingRef.current = false;
+                cleanupAudioContext();
+            }
         }
     }, [cleanupAudioContext]);
 
