@@ -128,6 +128,10 @@ Your limitations:
         while True:
             message = await websocket.receive()
             
+            if message["type"] == "websocket.disconnect":
+                print(f"Client disconnected (ID: {connection_id})")
+                break
+            
             if "text" in message:
                 data = json.loads(message["text"])
                 
