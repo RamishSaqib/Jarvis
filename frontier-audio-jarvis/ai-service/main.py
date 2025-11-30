@@ -179,7 +179,7 @@ Your limitations:
                                     model="whisper-1",
                                     file=audio_file,
                                     language="en",
-                                    prompt="Jarvis, AI, code, function, variable, React, TypeScript, Python, API, database, Anime, Manga, Naruto, One Piece, Movies, Music, Weather, News, Search, Super Bowl, NFL, 2024, 2025, winner, game, sports"
+                                    prompt="The following is a conversation with Jarvis, an AI assistant. The user discusses coding, tech news, pop culture, and current events like the Super Bowl or elections."
                                 )
                             
                             # Clean up temp file
