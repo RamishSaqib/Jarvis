@@ -17,6 +17,68 @@ export function useAudioRecorder(
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
 
+    // Silence detection refs
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const silenceStartRef = useRef<number | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
+    const isRecordingRef = useRef<boolean>(false);
+
+    const SILENCE_THRESHOLD = 0.015; // Tuned for voice vs background noise
+    const SILENCE_DURATION = 1500; // 1.5 seconds
+
+    const cleanupAudioContext = useCallback(() => {
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+        analyserRef.current = null;
+        silenceStartRef.current = null;
+    }, []);
+
+    const stopRecording = useCallback(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+            isRecordingRef.current = false;
+            cleanupAudioContext();
+        }
+    }, [cleanupAudioContext]);
+
+    const detectSilence = useCallback(() => {
+        if (!analyserRef.current || !isRecordingRef.current) return;
+
+        const bufferLength = analyserRef.current.fftSize;
+        const dataArray = new Float32Array(bufferLength);
+        analyserRef.current.getFloatTimeDomainData(dataArray);
+
+        // Calculate RMS (Root Mean Square) volume
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i] * dataArray[i];
+        }
+        const rms = Math.sqrt(sum / bufferLength);
+
+        // Check for silence
+        if (rms < SILENCE_THRESHOLD) {
+            if (silenceStartRef.current === null) {
+                silenceStartRef.current = Date.now();
+            } else if (Date.now() - silenceStartRef.current > SILENCE_DURATION) {
+                console.log('Silence detected, stopping recording...');
+                stopRecording();
+                return; // Stop loop
+            }
+        } else {
+            // Reset silence timer if noise is detected
+            silenceStartRef.current = null;
+        }
+
+        animationFrameRef.current = requestAnimationFrame(detectSilence);
+    }, [stopRecording]);
+
     const startRecording = useCallback(async () => {
         try {
             setError(null);
@@ -32,6 +94,16 @@ export function useAudioRecorder(
             });
 
             streamRef.current = stream;
+
+            // Setup AudioContext for silence detection
+            const audioContext = new AudioContext();
+            const source = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 2048;
+            source.connect(analyser);
+
+            audioContextRef.current = audioContext;
+            analyserRef.current = analyser;
 
             // Create MediaRecorder with webm format
             const mediaRecorder = new MediaRecorder(stream, {
@@ -52,10 +124,14 @@ export function useAudioRecorder(
                 console.error('MediaRecorder error:', event);
                 setError('Recording error occurred');
                 setRecordingState('error');
+                cleanupAudioContext();
             };
 
             mediaRecorder.onstop = () => {
                 setRecordingState('idle');
+                isRecordingRef.current = false;
+                cleanupAudioContext();
+
                 // Clean up stream
                 if (streamRef.current) {
                     streamRef.current.getTracks().forEach(track => track.stop());
@@ -66,19 +142,18 @@ export function useAudioRecorder(
             // Start recording with chunks every 100ms for real-time streaming
             mediaRecorder.start(100);
             setRecordingState('recording');
+            isRecordingRef.current = true;
+
+            // Start silence detection loop
+            detectSilence();
 
         } catch (err) {
             console.error('Failed to start recording:', err);
             setError(err instanceof Error ? err.message : 'Failed to access microphone');
             setRecordingState('error');
+            cleanupAudioContext();
         }
-    }, [onAudioData]);
-
-    const stopRecording = useCallback(() => {
-        if (mediaRecorderRef.current && recordingState === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
-    }, [recordingState]);
+    }, [onAudioData, detectSilence, cleanupAudioContext]);
 
     return {
         recordingState,

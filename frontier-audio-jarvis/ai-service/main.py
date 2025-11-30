@@ -86,6 +86,7 @@ async def websocket_endpoint(websocket: WebSocket):
 You have access to the following tools and capabilities:
 - **Web Search**: You can search the web for real-time information. Use this when asked about current events, facts, or things you don't know.
   SEARCH_WEB: {"query": "search query here"}
+  - **IMPORTANT**: If the user asks about "my anime list" or "MAL", they are referring to the public website `myanimelist.net`. You SHOULD search this website for ratings and information. It is NOT a private file.
 - **GitHub Integration**: You can search public GitHub repositories for code and documentation.
 - **Real-time Interaction**: You can be interrupted by the user at any time.
 - **PR Creation**: If the user asks you to create a pull request, you can do so by responding with a special command format:
@@ -172,7 +173,7 @@ Your limitations:
                                     model="whisper-1",
                                     file=audio_file,
                                     language="en",
-                                    prompt="Jarvis, AI, code, function, variable, React, TypeScript, Python, API, database"
+                                    prompt="Jarvis, AI, code, function, variable, React, TypeScript, Python, API, database, Anime, Manga, Naruto, One Piece, Movies, Music, Weather, News, Search"
                                 )
                             
                             # Clean up temp file

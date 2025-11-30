@@ -180,20 +180,47 @@ class SearchService:
     def _wikipedia_search(self, query):
         """
         Uses wikipedia library as a reliable fallback for facts.
+        Includes query cleaning to remove search terms that confuse Wikipedia.
         """
         try:
+            # Clean query: remove common search terms that confuse Wikipedia
+            stop_words = ["imdb", "rating", "ratings", "review", "reviews", "plot", "cast", "summary", "wiki", "wikipedia"]
+            clean_query = query
+            # Case-insensitive replacement
+            import re
+            for word in stop_words:
+                clean_query = re.sub(r'\b' + re.escape(word) + r'\b', '', clean_query, flags=re.IGNORECASE)
+            
+            # Remove extra spaces
+            clean_query = " ".join(clean_query.split())
+            print(f"Cleaned Wikipedia query: '{clean_query}'")
+
             # Search for pages
-            search_results = wikipedia.search(query, results=1)
+            search_results = wikipedia.search(clean_query, results=1)
             if not search_results:
                 return None
             
             page_title = search_results[0]
-            # Get page summary
-            summary = wikipedia.summary(page_title, sentences=3)
-            page = wikipedia.page(page_title, auto_suggest=False)
+            
+            try:
+                # Get page object first to handle disambiguation
+                page = wikipedia.page(page_title, auto_suggest=False)
+                summary = wikipedia.summary(page_title, sentences=3, auto_suggest=False)
+            except wikipedia.DisambiguationError as e:
+                print(f"Wikipedia disambiguation for '{page_title}', trying: {e.options[0]}")
+                page_title = e.options[0]
+                try:
+                    page = wikipedia.page(page_title, auto_suggest=False)
+                    summary = wikipedia.summary(page_title, sentences=3, auto_suggest=False)
+                except Exception as e2:
+                    print(f"Failed to resolve disambiguation: {e2}")
+                    return None
+            except wikipedia.PageError:
+                print(f"Wikipedia page not found: {page_title}")
+                return None
             
             formatted_result = "Search Results (via Wikipedia):\n\n"
-            formatted_result += f"1. {page_title}\n   {summary}\n   Source: {page.url}\n\n"
+            formatted_result += f"1. {page.title}\n   {summary}\n   Source: {page.url}\n\n"
             
             return formatted_result
         except Exception as e:
